@@ -1,3 +1,4 @@
 builddir/
 *.sublime-project
 *.sublime-workspace
+*.Rdata
