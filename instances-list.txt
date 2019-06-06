@@ -1,10 +1,10 @@
-tmp.txt --D 10 --instance 1
-tmp.txt --D 10 --instance 2
-tmp.txt --D 10 --instance 3
-tmp.txt --D 10 --instance 4
-tmp.txt --D 10 --instance 5
-tmp.txt --D 10 --instance 6
-tmp.txt --D 10 --instance 7
-tmp.txt --D 10 --instance 8
-tmp.txt --D 10 --instance 9
-tmp.txt --D 10 --instance 10
+--D 10 --instance 1
+--D 10 --instance 2
+--D 10 --instance 3
+--D 10 --instance 4
+--D 10 --instance 5
+--D 10 --instance 6
+--D 10 --instance 7
+--D 10 --instance 8
+--D 10 --instance 9
+--D 10 --instance 10
