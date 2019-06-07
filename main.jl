@@ -169,7 +169,6 @@ Base.@ccallable function julia_main(ARGS::Vector{String})::Cint
     # display(parms)
 
     print(getResult(f, alg, parms))
-    println("")
 
     return 0
 end
