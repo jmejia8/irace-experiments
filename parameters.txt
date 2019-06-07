@@ -1,3 +1,7 @@
+# popSize   "--N "   i  (10, 200) 
+# K         "--K "   i  (3, 10)
+# eta       "--eta " r  (0, 10)
+
 popSize   "--N "   i  (10, 200) 
-K         "--K "   i  (3, 10)
-eta       "--eta " r  (0, 10)
+F         "--F "   r  (0, 4)
+CR       "--CR "   r  (0, 1)
