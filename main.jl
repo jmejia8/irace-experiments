@@ -1,8 +1,22 @@
-module Hello
+module Instance
 
 using Metaheuristics
 using CEC17
 import Random: seed!
+
+desired_accu = 1e-6
+
+function accuracy_termination(P::Array)
+    if typeof(P[1]) <: Float64
+        f = minimum(P)
+    elseif typeof(P[1]) <: Metaheuristics.Bee
+        f = minimum( map(x->x.sol.f, P) )
+    else
+        f = minimum( map(x->x.f, P) )
+    end
+
+    return abs(f) < desired_accu
+end
 
 function parseArgsED(args)
     arguments = Dict([ 
@@ -11,30 +25,31 @@ function parseArgsED(args)
                         "--CR" => 0.9,
                         "--strategy" => 1,
                         "--D" => 10,
-                        "--instance" => 1,
+                        # "--instance" => 1,
+                        # "--desiredAccur" => 1e-6,
                     ])
 
     for i = 1:div(length(args), 2)
         arguments[args[2i-1]] = parse(Float64, args[2i])
     end
 
-    # return Int(arguments["--D"]), Int(arguments["--N"]), arguments["--F"], arguments["--CR"], Int(arguments["--instance"])
     return arguments
 end
+
 
 function parseArgsECA(args)
     arguments = Dict([ ("--D", 10),
                        ("--N", 100),
                        ("--K", 7),
                        ("--eta", 2.0),
-                       ("--instance", 1)
+                       # ("--instance", 1),
+                       # ("--desiredAccur", 1e-6)
                     ])
    
     for i = 1:div(length(args), 2)
         arguments[args[2i-1]] = parse(Float64, args[2i])
     end
 
-    # return Int(arguments["--D"]), Int(arguments["--N"]), Int(arguments["--K"]), Float64(arguments["--eta"]), Int(arguments["--instance"])
     return arguments
 end
 
@@ -44,13 +59,13 @@ function parseArgsPSO(args)
                        ("--C1", 2.0),
                        ("--C2", 2.0),
                        ("--omega", 0.8),
-                       ("--instance", 1)
+                       # ("--instance", 1),
+                       # ("--desiredAccur", 1e-6)
                     ])
     for i = 1:div(length(args), 2)
         arguments[args[2i-1]] = parse(Float64, args[2i])
     end
 
-    # return Int(arguments["--D"]), Int(arguments["--N"]), arguments["--C1"], arguments["--C1"], arguments["--omega"], Int(arguments["--instance"])
     return arguments
 end
 
@@ -58,18 +73,16 @@ function parseArgsABC(args)
     arguments = Dict([ ("--D", 10),
                        ("--N", 100),
                        ("--limit", 10),
-                       ("--Ne", 10),
-                       ("--No", 10),
-                       ("--instance", 1)
+                       ("--Ne", 0.5),
+                       ("--No", 0.5),
+                       # ("--instance", 1),
+                       # ("--desiredAccur", 1e-6)
                     ])
-
-    arguments["--Ne"] = arguments["--No"] = div(arguments["--N"], 2)
 
     for i = 1:div(length(args), 2)
         arguments[args[2i-1]] = parse(Float64, args[2i])
     end
 
-    # return Int(arguments["--D"]), Int(arguments["--N"]), Int(arguments["--limit"]), Int(arguments["--Ne"]), Int(arguments["--No"]), Int(arguments["--instance"])
     return arguments
 end
 
@@ -107,6 +120,7 @@ function ecaResult(f, p)
                     K = Int(p["--K"]),
                     N = Int(p["--N"]),
                     η_max = Float64(p["--eta"]),
+                    termination = accuracy_termination,
                     showResults = false)
     return fx
 end
@@ -116,6 +130,7 @@ function edResult(f, p)
                 N = Int(p["--N"]),
                 F = Float64(p["--F"]),
                 CR= Float64(p["--CR"]),
+                termination = accuracy_termination,
                 showResults = false)
     return fx
 end
@@ -126,47 +141,73 @@ function psoResult(f, p)
                     C1 = Float64(p["--C1"]),
                     C2 = Float64(p["--C2"]),
                     ω  = Float64(p["--omega"]),
+                    termination = accuracy_termination,
                     showResults = false)
     return fx
 end
 
 function abcResult(f, p)
     D = Int(p["--D"])
+    N = round(Int, p["--N"])
+    Ne = round(Int, p["--Ne"]*N)
+
+    println("$N $Ne")
+
     x, fx = ABC(f, Matrix([-100.0ones(D) 100ones(D)]');
                             N = Int(p["--N"]),
                             limit = Int(p["--limit"]),
-                            Ne = Int(p["--Ne"]),
-                            No = Int(p["--No"]))
+                            Ne = Ne,
+                            termination = accuracy_termination,
+                            No = N - Ne)
     return fx
 end
 
 function getResult(f, alg, parms)
+    fx = NaN
     if lowercase(alg)=="ed"
-        return edResult(f, parms)
+        fx = edResult(f, parms)
     elseif lowercase(alg)=="eca"
-        return ecaResult(f, parms)
+        fx = ecaResult(f, parms)
     elseif lowercase(alg)=="pso"
-        return psoResult(f, parms)
+        fx = psoResult(f, parms)
     elseif lowercase(alg)=="abc"
-        return abcResult(f, parms)
+        fx = abcResult(f, parms)
     else
         @error "Not valid algorithm."
         exit(1)
     end
+
+    if fx < desired_accu
+        fx = 0.0
+    end
+
+    fx
 end
 
 Base.@ccallable function julia_main(ARGS::Vector{String})::Cint
 
     alg, parms = parseArgs(ARGS)
 
-    seed!(round(Int, parms["--seed"]))
+    if "--desiredAccur" in keys(parms)
+        global desired_accu = parms["--desiredAccur"]
+    end
 
-    instance = round(Int, parms["--instance"])
+    if "--seed" in keys(parms)
+        seed!(round(Int, parms["--seed"]))
+    else
+        @info("Starting with a random seed...")
+    end
+
+    if "--instance" in keys(parms)
+        instance = round(Int, parms["--instance"])
+    else
+        @error("No instance (`--instance` flag) was provided...")
+        exit(1)
+    end
 
     f(x, fnum=instance) = cec17_test_func(x, fnum) - fnum*100.0
 
 
-    # display(parms)
 
     print(getResult(f, alg, parms))
 
