@@ -151,8 +151,6 @@ function abcResult(f, p)
     N = round(Int, p["--N"])
     Ne = round(Int, p["--Ne"]*N)
 
-    println("$N $Ne")
-
     x, fx = ABC(f, Matrix([-100.0ones(D) 100ones(D)]');
                             N = Int(p["--N"]),
                             limit = Int(p["--limit"]),
